@@ -1,0 +1,16 @@
+{
+  "name": "personal-dev-mcp-server",
+  "version": "1.0.0",
+  "description": "Standalone MCP (Model Context Protocol) stdio server exposing personal developer tools.",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
