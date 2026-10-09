@@ -1,326 +1,309 @@
 # Personal Developer MCP Server
 
-A full-stack AI-powered developer assistant built with the **Model Context Protocol (MCP)**, **Gemini tool calling**, **Node.js**, **Express**, and **React**.
+### An AI-Powered Developer Assistant Built with Gemini, Model Context Protocol, Node.js & React
 
-The project gives an AI assistant controlled access to a sandboxed development workspace where it can inspect files, modify code, search projects, execute approved shell commands, work with Git, manage development tasks, and inspect system information.
+Build, inspect, and manage software projects through natural language. **Personal Developer MCP Server** is a full-stack AI developer assistant that combines Gemini function calling with the Model Context Protocol (MCP) to execute developer tools, manage files, inspect Git repositories, and automate development workflows inside a controlled local workspace.
 
-It can be used in two different ways:
+Unlike a basic chatbot that only generates code, this project enables an AI model to **select tools, execute actions, inspect results, and combine multiple operations into a single workflow.**
 
-* As a **standalone MCP server** for MCP-compatible clients such as Claude Desktop or Cursor.
-* As a **full-stack web application** where Gemini automatically calls developer tools through function calling.
+It provides two integration modes: a Gemini-powered web application and a standalone MCP server compatible with MCP-enabled clients.
+
+<p align="center">
+  <strong>Natural Language → AI Reasoning → Tool Execution → Results</strong>
+</p>
+
+---
+
+## Table of Contents
+
+* [Overview](#overview)
+* [Key Features](#key-features)
+* [Architecture](#architecture)
+* [Tech Stack](#tech-stack)
+* [Available Developer Tools](#available-developer-tools)
+* [Project Structure](#project-structure)
+* [Getting Started](#getting-started)
+* [Running the Application](#running-the-application)
+* [Connecting an MCP Client](#connecting-an-mcp-client)
+* [Example Workflows](#example-workflows)
+* [Security and Safety](#security-and-safety)
+* [Testing](#testing)
+* [Current Limitations](#current-limitations)
+* [Roadmap](#roadmap)
+* [Use Cases](#use-cases)
+* [Contributing](#contributing)
+* [License](#license)
 
 ---
 
 ## Overview
 
-```text
-personal-dev-mcp-server/
-│
-├── mcp-server/       Standalone MCP server over stdio
-├── backend/          Express API + Gemini tool-calling engine
-└── frontend/         React + Vite developer chat interface
-```
+Personal Developer MCP Server explores how AI agents can interact with real development environments through standardized tools rather than relying exclusively on text generation.
 
-The architecture is designed around a shared tool implementation.
+The system consists of three applications:
 
-Instead of maintaining separate tool logic for the web application and MCP server, both environments use the same tools from:
+| Component             | Responsibility                                                                         |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| **React + Vite**      | Interactive developer chat interface and tool execution visualization                  |
+| **Node.js + Express** | Backend API, Gemini integration, and tool execution                                    |
+| **MCP Server**        | Exposes developer tools to compatible AI clients through standard input/output (stdio) |
 
-```text
-backend/tools/
-```
+The core design principle is **shared tool logic**. Both the web application and the standalone MCP server use the same implementation from `backend/tools/`, reducing duplicated code and keeping tool behavior consistent.
 
-This prevents duplicated logic and ensures that tool behavior remains consistent across MCP clients and the Gemini-powered web application.
+### Two ways to use the project
+
+**1. Gemini-powered web application**
+
+Interact with the assistant through a browser. Gemini determines which tools to call, the backend executes the requested operations, and the model uses the returned results to formulate its response.
+
+**2. Standalone MCP server**
+
+Connect the developer tools to compatible MCP clients, such as Claude Desktop or Cursor, without requiring the Gemini-powered web interface.
 
 ---
 
 ## Key Features
 
-### MCP-Compatible Developer Tools
+### AI Agent with Tool Calling
 
-Run the project as a real **Model Context Protocol server** and expose developer tools directly to compatible AI clients.
+* Integrates the Google Gemini API with function calling.
+* Converts natural-language requests into structured tool calls.
+* Processes tool results and returns context-aware responses.
+* Supports multiple tool calls within a single interaction.
+* Enables multi-step developer workflows.
 
-Supported environments can discover and call the tools automatically.
+### Standardized MCP Integration
 
----
+* Implements a standalone MCP server using the MCP SDK.
+* Communicates through stdio.
+* Exposes the shared developer toolset to compatible MCP clients.
+* Keeps the tool implementation independent of a specific AI interface.
 
-### Gemini Function Calling
+### Workspace-Aware File Operations
 
-The web application integrates with the Gemini API and implements a complete tool-calling loop.
+* Read, create, and update files.
+* List files and directories.
+* Delete workspace files.
+* Search project files for matching text.
+* Restrict normal file-tool operations to the configured workspace.
 
-Gemini can:
+### Controlled Command Execution
 
-```text
-User Request
-     ↓
-Gemini
-     ↓
-Select Tool
-     ↓
-Backend Executes Tool
-     ↓
-Tool Result
-     ↓
-Gemini
-     ↓
-Final Response
-```
+* Provides a predefined shell-command allowlist.
+* Supports selected development commands, including Node.js, npm, Git, Python, and common file utilities.
+* Rejects commands outside the configured allowlist.
+* Avoids intentionally providing unrestricted shell access to the model.
 
-The AI can call multiple tools during a single conversation when necessary.
+### Git-Aware Development Workflows
 
----
+* Inspect repository status.
+* Review code changes using Git diff.
+* Explore commit history.
+* Create Git commits through the available tool interface.
 
-### Sandboxed File System
+### Built-In Development Task Management
 
-All file operations are restricted to a dedicated workspace:
+* Create development tasks.
+* View existing tasks.
+* Mark tasks as completed.
+* Combine code-search results with task creation.
 
-```text
-backend/workspace/
-```
+### Transparent Tool Execution
 
-The assistant can work inside this directory but cannot intentionally access files outside it through normal tool operations.
+The frontend includes dedicated tool-call cards that can display:
 
-Path traversal attempts such as:
+* Tool name
+* Input arguments
+* Execution result
 
-```text
-../../secret.txt
-```
-
-are rejected.
-
----
-
-### Controlled Shell Execution
-
-The assistant does not receive unrestricted shell access.
-
-`run_shell_command` uses a command whitelist containing approved commands such as:
-
-```text
-ls
-cat
-node
-npm
-git
-python3
-pwd
-echo
-mkdir
-grep
-find
-wc
-head
-tail
-date
-```
-
-Commands outside the whitelist are rejected.
-
-This reduces the risk of destructive or unintended commands being executed by an AI-generated tool call.
+This makes the agent's actions easier to inspect and debug.
 
 ---
 
-### Git Integration
+## Architecture
 
-The assistant can inspect and work with Git repositories directly from the workspace.
+### System Overview
 
-Supported operations include:
-
-```text
-git status
-git diff
-git log
-git commit
+```mermaid
+flowchart TD
+    U["User"] --> UI["React + Vite Frontend"]
+    UI --> API["Express Backend"]
+    API <--> GEM["Gemini API"]
+    API --> REG["Shared Tool Registry"]
+    REG --> FS["Filesystem Tools"]
+    REG --> SH["Shell Tools"]
+    REG --> GT["Git Tools"]
+    REG --> TD["Todo Tools"]
+    REG --> SI["System Information"]
+    FS --> WS["Sandboxed Workspace"]
+    SH --> WS
+    GT --> WS
+    MCP["MCP-Compatible Client"] <--> SERVER["Standalone MCP Server"]
+    SERVER --> REG
 ```
 
-This allows the assistant to understand repository changes and assist with common development workflows.
+### Gemini Function-Calling Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant B as Express Backend
+    participant G as Gemini API
+    participant T as Shared Tools
+
+    U->>B: Submit natural-language request
+    B->>G: Send request and tool definitions
+    G-->>B: Return tool call
+    B->>T: Execute selected tool
+    T-->>B: Return execution result
+    B->>G: Submit tool result
+    G-->>B: Generate final response
+    B-->>U: Return response and tool activity
+```
+
+The backend manages the interaction between Gemini and the local tool layer. When Gemini requests a tool, the backend executes it and provides the result to the model so it can continue the workflow.
+
+### Why a Shared Tool Layer?
+
+Both integrations depend on the same implementation:
+
+```text
+                 ┌─────────────────────┐
+                 │   Shared Tool Layer │
+                 │ backend/tools/      │
+                 └──────────┬──────────┘
+                            │
+                ┌───────────┴───────────┐
+                │                       │
+        Gemini Web App           MCP Server
+        Express + React          stdio + MCP
+```
+
+This separation improves maintainability, avoids duplicated tool implementations, and makes it easier to introduce additional AI clients in the future.
 
 ---
 
-### Built-In Task Tracking
+## Tech Stack
 
-A lightweight todo system is included for managing development tasks.
-
-The assistant can:
-
-* Add tasks
-* View pending tasks
-* Mark tasks as completed
-
-This can be useful when working through multi-step development work.
-
----
-
-### Live Tool Call Visualization
-
-The React frontend displays every tool invocation made by Gemini.
-
-Each tool-call card can show:
-
-```text
-Tool Name
-Arguments
-Execution Result
-```
-
-This makes AI actions visible rather than hiding tool execution behind the chat interface.
+| Category             | Technologies                                |
+| -------------------- | ------------------------------------------- |
+| AI Integration       | Google Gemini API, Function Calling         |
+| Agent Tool Protocol  | Model Context Protocol (MCP)                |
+| Backend              | Node.js, Express.js, JavaScript             |
+| Frontend             | React, Vite, JavaScript                     |
+| API Communication    | REST, HTTP, JSON                            |
+| Developer Operations | Git, Node.js child processes                |
+| System Integration   | Filesystem APIs, OS and process information |
+| Package Management   | npm                                         |
 
 ---
 
-# Available Tools
+## Available Developer Tools
 
-All tools are registered through:
+All tools are registered through `backend/tools/` and reused by the web application and MCP server.
 
-```text
-backend/tools/
-```
+| Tool                | Description                                                |
+| ------------------- | ---------------------------------------------------------- |
+| `read_file`         | Read a file inside the workspace                           |
+| `write_file`        | Create or overwrite a workspace file                       |
+| `list_directory`    | List files and directories                                 |
+| `delete_file`       | Delete a workspace file                                    |
+| `search_code`       | Search project files for matching text                     |
+| `run_shell_command` | Execute commands permitted by the configured allowlist     |
+| `git_status`        | Inspect repository status                                  |
+| `git_diff`          | Review changes to tracked files                            |
+| `git_log`           | Inspect commit history                                     |
+| `git_commit`        | Create a Git commit                                        |
+| `add_todo`          | Add a development task                                     |
+| `list_todos`        | Display existing tasks                                     |
+| `complete_todo`     | Mark a task as completed                                   |
+| `get_system_info`   | Retrieve selected OS, Node.js, CPU, and memory information |
 
-| Tool                | Description                                       |
-| ------------------- | ------------------------------------------------- |
-| `read_file`         | Read the contents of a workspace file             |
-| `write_file`        | Create or overwrite a file                        |
-| `list_directory`    | List files and directories                        |
-| `delete_file`       | Delete a workspace file                           |
-| `search_code`       | Recursively search text across project files      |
-| `run_shell_command` | Execute approved shell commands                   |
-| `git_status`        | Display repository status                         |
-| `git_diff`          | View repository changes                           |
-| `git_log`           | View Git commit history                           |
-| `git_commit`        | Create a Git commit                               |
-| `add_todo`          | Add a development task                            |
-| `list_todos`        | Display existing tasks                            |
-| `complete_todo`     | Mark a task as completed                          |
-| `get_system_info`   | Retrieve OS, Node.js, CPU, and memory information |
+**Note:** Actual behavior and restrictions depend on each tool's implementation and configuration.
 
 ---
 
-# Architecture
+## Project Structure
 
 ```text
-                         ┌───────────────────────┐
-                         │        User           │
-                         └───────────┬───────────┘
-                                     │
-                                     ▼
-                         ┌───────────────────────┐
-                         │   React + Vite UI     │
-                         │      Frontend         │
-                         └───────────┬───────────┘
-                                     │
-                                     │ HTTP
-                                     ▼
-                         ┌───────────────────────┐
-                         │    Express Backend    │
-                         │     Chat API          │
-                         └───────────┬───────────┘
-                                     │
-                                     ▼
-                         ┌───────────────────────┐
-                         │      Gemini API       │
-                         │   Function Calling    │
-                         └───────────┬───────────┘
-                                     │
-                              Tool Requests
-                                     │
-                                     ▼
-                     ┌──────────────────────────────┐
-                     │        Shared Tools          │
-                     │                              │
-                     │ Filesystem │ Shell │ Git     │
-                     │ Todos      │ System Info     │
-                     └──────────────┬───────────────┘
-                                    │
-                                    ▼
-                         ┌───────────────────────┐
-                         │      Workspace        │
-                         │ backend/workspace/    │
-                         └───────────────────────┘
+personal-dev-mcp-server/
+│
+├── backend/
+│   ├── server.js
+│   ├── gemini.js
+│   ├── .env.example
+│   ├── package.json
+│   │
+│   ├── tools/
+│   │   ├── index.js
+│   │   ├── filesystem.js
+│   │   ├── shell.js
+│   │   ├── git.js
+│   │   ├── notes.js
+│   │   └── system.js
+│   │
+│   └── workspace/
+│
+├── mcp-server/
+│   ├── index.js
+│   └── package.json
+│
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── components/
+│   │       ├── ChatWindow.jsx
+│   │       ├── Message.jsx
+│   │       └── ToolCallCard.jsx
+│   ├── index.html
+│   └── package.json
+│
+└── README.md
 ```
 
-The MCP server also imports the same tool implementation:
+### Core modules
 
-```text
-Claude / Cursor
-       │
-       ▼
-MCP Protocol
-       │
-       ▼
-mcp-server/index.js
-       │
-       ▼
-backend/tools/
-```
-
-This shared architecture avoids maintaining two independent implementations.
+* `backend/server.js` — Express server and chat API.
+* `backend/gemini.js` — Gemini API integration and tool-calling workflow.
+* `backend/tools/index.js` — Tool registry and function schemas.
+* `backend/tools/filesystem.js` — Workspace file operations.
+* `backend/tools/shell.js` — Command execution restrictions.
+* `backend/tools/git.js` — Git-related operations.
+* `backend/tools/notes.js` — Development task management.
+* `backend/tools/system.js` — System information.
+* `mcp-server/index.js` — Standalone MCP server entry point.
+* `frontend/src/components/ToolCallCard.jsx` — Tool execution visualization.
 
 ---
 
-# Tech Stack
+## Getting Started
 
-### AI
+### Prerequisites
 
-* Google Gemini API
-* Gemini Function Calling
-* Model Context Protocol
+Install the following before running the project:
 
-### Backend
-
-* Node.js
-* Express.js
-* JavaScript
-* REST API
-
-### Frontend
-
-* React
-* Vite
-* JavaScript
-
-### Developer Tools
-
+* Node.js 18 or later
+* npm
 * Git
-* Node.js child processes
-* File system APIs
-* MCP SDK
+* A Gemini API key for the web application
 
----
+Node.js 22 is also suitable, provided the project's dependencies support the selected runtime.
 
-# Prerequisites
-
-Before running the project, install:
-
-* **Node.js 18+**
-* **npm**
-* **Git**
-
-Node.js 22 is fully suitable for the project.
-
-For the web application, you also need a Gemini API key.
-
-Create one from Google AI Studio:
-
-```text
-https://aistudio.google.com/apikey
-```
-
-The raw MCP server does not require a Gemini API key because the MCP client is responsible for the AI model.
-
----
-
-# Installation
-
-Clone the repository:
+### 1. Clone the repository
 
 ```bash
 git clone <your-repository-url>
 cd personal-dev-mcp-server
 ```
 
-The project contains three independent Node.js applications.
+Replace `<your-repository-url>` with the actual Git repository URL.
 
-Install dependencies for each one.
+### 2. Install dependencies
 
-### MCP Server
+The project contains three separate Node.js applications. Install dependencies in each directory.
+
+**MCP server**
 
 ```bash
 cd mcp-server
@@ -328,7 +311,7 @@ npm install
 cd ..
 ```
 
-### Backend
+**Backend**
 
 ```bash
 cd backend
@@ -336,7 +319,7 @@ npm install
 cd ..
 ```
 
-### Frontend
+**Frontend**
 
 ```bash
 cd frontend
@@ -344,9 +327,9 @@ npm install
 cd ..
 ```
 
----
+### 3. Configure Gemini
 
-# Gemini Configuration
+Create an API key using [Google AI Studio](https://aistudio.google.com/apikey).
 
 Move into the backend directory:
 
@@ -354,155 +337,111 @@ Move into the backend directory:
 cd backend
 ```
 
-Create your environment file.
+Create your local environment file.
 
-### macOS / Linux
-
-```bash
-cp .env.example .env
-```
-
-### Windows Command Prompt
+**Windows Command Prompt**
 
 ```cmd
 copy .env.example .env
 ```
 
-### Windows PowerShell
+**Windows PowerShell**
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Open `.env` and configure:
+**macOS / Linux**
+
+```bash
+cp .env.example .env
+```
+
+Add your configuration to `backend/.env`:
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key
 PORT=8787
 ```
 
-Do not commit your real API key to GitHub.
+Replace the placeholder with your actual API key. Keep this file private.
 
-Your `.gitignore` should contain:
+### 4. Protect environment files
+
+Ensure your `.gitignore` excludes local secrets and installed dependencies:
 
 ```gitignore
 .env
+.env.*
+!.env.example
 node_modules/
 ```
 
+Review the repository's existing ignore rules before adding or replacing them. Never commit real API keys.
+
 ---
 
-# Running the Web Application
+## Running the Application
 
-The web application requires both the backend and frontend to run.
+### Start the backend
 
-Open two terminals.
-
-## Terminal 1 — Backend
+Open a terminal:
 
 ```bash
 cd backend
 npm run dev
 ```
 
-Expected output:
+If the development script is configured correctly, the server should start at:
 
 ```text
-Server listening on http://localhost:8787
+http://localhost:8787
 ```
 
----
+The exact output depends on the implementation.
 
-## Terminal 2 — Frontend
+### Start the frontend
+
+Open a second terminal:
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Vite will display a URL similar to:
+Vite will print a local development URL, typically:
 
 ```text
 http://localhost:5173
 ```
 
-Open it in your browser.
+Open the URL printed in your terminal to access the developer assistant.
+
+**Troubleshooting:** If `npm run dev` is unavailable, inspect the relevant `package.json` scripts and use the command configured by the project. Ensure the backend and frontend ports do not conflict with other applications.
 
 ---
 
-# Example Prompts
+## Connecting an MCP Client
 
-Once the application is running, try:
+The standalone server exposes the shared developer tools through the MCP protocol over stdio. This mode does not require the web application's Gemini API key because the connected MCP client supplies the model and manages the AI interaction.
 
-```text
-List all files in my workspace.
-```
+### Claude Desktop Configuration
 
-```text
-Create a file called notes.md with a heading called Ideas.
-```
+Locate the Claude Desktop configuration file.
 
-```text
-Search the project for TODO comments.
-```
-
-```text
-Add a todo to refactor the authentication module.
-```
-
-```text
-Show me the current Git status.
-```
-
-```text
-Find all JavaScript files containing console.log.
-```
-
-```text
-Create a simple Node.js HTTP server inside the workspace.
-```
-
-Gemini determines which tool or combination of tools is required.
-
----
-
-# Using the MCP Server
-
-The project can also operate independently as a standard MCP server.
-
-The server communicates over:
-
-```text
-stdio
-```
-
-and exposes the developer tools directly to MCP-compatible clients.
-
-The entry point is:
-
-```text
-mcp-server/index.js
-```
-
----
-
-# Claude Desktop Configuration
-
-Locate your Claude Desktop configuration file.
-
-### Windows
+**Windows**
 
 ```text
 %APPDATA%\Claude\claude_desktop_config.json
 ```
 
-### macOS
+**macOS**
 
 ```text
 ~/Library/Application Support/Claude/claude_desktop_config.json
 ```
 
-Add:
+Add the following entry, adjusting the path to match your local installation:
 
 ```json
 {
@@ -517,418 +456,314 @@ Add:
 }
 ```
 
-Replace the path with the actual absolute path to your project.
+Replace the example path with the actual absolute path to `mcp-server/index.js`.
 
-Restart Claude Desktop.
+Save the configuration and restart Claude Desktop. Verify that the server starts successfully and that the expected tools are discoverable.
 
-The developer tools should then become available to the MCP client.
+### Other MCP-Compatible Clients
+
+For Cursor or another compatible client, configure a local stdio MCP server using the client's supported configuration format.
+
+The exact configuration depends on the client and its version.
 
 ---
 
-# Project Structure
+## Example Workflows
+
+Try these prompts after starting the web application or connecting an MCP client.
+
+### Inspect a project
 
 ```text
-personal-dev-mcp-server/
-│
-├── backend/
-│   │
-│   ├── server.js
-│   │   └── Express server and chat API
-│   │
-│   ├── gemini.js
-│   │   └── Gemini API integration
-│   │
-│   ├── tools/
-│   │   ├── index.js
-│   │   │   └── Tool registry and JSON schemas
-│   │   │
-│   │   ├── filesystem.js
-│   │   │   └── File operations
-│   │   │
-│   │   ├── shell.js
-│   │   │   └── Whitelisted shell execution
-│   │   │
-│   │   ├── git.js
-│   │   │   └── Git operations
-│   │   │
-│   │   ├── notes.js
-│   │   │   └── Todo management
-│   │   │
-│   │   └── system.js
-│   │       └── System information
-│   │
-│   ├── workspace/
-│   │   └── Sandboxed AI development workspace
-│   │
-│   ├── .env.example
-│   └── package.json
-│
-├── mcp-server/
-│   ├── index.js
-│   │   └── MCP stdio server
-│   │
-│   └── package.json
-│
-├── frontend/
-│   │
-│   ├── src/
-│   │   ├── App.jsx
-│   │   │
-│   │   ├── components/
-│   │   │   ├── ChatWindow.jsx
-│   │   │   ├── Message.jsx
-│   │   │   └── ToolCallCard.jsx
-│   │   │
-│   │   └── main.jsx
-│   │
-│   ├── index.html
-│   └── package.json
-│
-└── README.md
+List all files in my workspace and summarize the project structure.
 ```
 
----
-
-# Security Model
-
-Giving an LLM access to developer tools creates real security risks.
-
-This project therefore implements multiple restrictions.
-
-## Workspace Isolation
-
-File operations resolve paths relative to the configured workspace.
-
-Requests attempting to escape the workspace are rejected.
-
-Example:
+### Create a file
 
 ```text
-../../etc/passwd
+Create notes.md in the workspace with a heading called Ideas
+and add three development ideas.
 ```
 
-should not be accessible through the file tools.
-
----
-
-## Shell Command Whitelist
-
-Instead of allowing arbitrary system commands, the project uses a predefined list of approved commands.
-
-The whitelist is defined in:
+### Search the codebase
 
 ```text
-backend/tools/shell.js
+Find all JavaScript files containing console.log
+and show the matching file paths.
 ```
 
-Additional commands should only be added after considering their security implications.
-
----
-
-## API Key Protection
-
-Gemini credentials are stored in:
+### Manage development tasks
 
 ```text
-backend/.env
+Add a todo to refactor the authentication module.
+Then show all pending tasks.
 ```
 
-They should never be:
+### Inspect Git changes
 
-* committed to Git
-* exposed through frontend code
-* included in screenshots
-* published in README files
-* shared through client-side environment variables
+```text
+Show the current Git status and summarize the changes.
+```
 
----
+### Combine multiple tools
 
-## Local-First Design
+```text
+Search the workspace for TODO comments, identify the important
+ones, create a development task for each, and summarize the results.
+```
 
-The backend is intended primarily for local development.
+### Build a small application
 
-It does not include production-grade authentication or authorization.
+```text
+Create a basic Node.js HTTP server inside the workspace.
+List the created files and show the Git status afterward.
+```
 
-Do not expose the backend directly to the public internet without first adding protections such as:
-
-* authentication
-* authorization
-* rate limiting
-* request validation
-* HTTPS
-* audit logging
-* stronger command isolation
-* container or VM sandboxing
+These examples illustrate intended workflows. Successful execution depends on the model response, available tools, permissions, repository state, and runtime configuration.
 
 ---
 
-# Testing
+## Security and Safety
 
-The tool layer has been smoke-tested using operations such as:
+An AI assistant that can modify files, execute commands, or interact with Git introduces meaningful security risks. The project includes basic safeguards, but it should be treated as a local development prototype rather than a production-secure execution platform.
+
+### Workspace Path Restrictions
+
+Normal filesystem tool operations are intended to remain within:
+
+```text
+backend/workspace/
+```
+
+Path traversal attempts such as the following should be rejected:
+
+```text
+../../secret.txt
+```
+
+**Important:** A robust implementation must resolve canonical paths, verify that resolved paths remain inside the workspace, and account for symbolic links. A simple string-prefix check is insufficient.
+
+### Shell Command Allowlist
+
+The configured allowlist includes commands such as:
+
+```text
+ls, cat, node, npm, git, python3, pwd,
+echo, mkdir, grep, find, wc, head, tail, date
+```
+
+The allowlist reduces the commands that can be requested, but **an allowlist alone does not guarantee safe execution**. Some permitted commands can run scripts, invoke additional programs, or access files outside the intended workspace.
+
+For stronger isolation, use argument validation, safe process spawning without a shell where possible, execution timeouts, resource limits, and container or virtual-machine isolation.
+
+### API Key Protection
+
+* Store Gemini credentials in backend environment variables.
+* Never expose secrets through frontend code.
+* Do not commit `.env` files.
+* Avoid printing API keys in logs or tool results.
+* Rotate exposed credentials immediately.
+
+### Local Development Only
+
+The project does not currently provide production-grade authentication, authorization, or multi-user isolation.
+
+Before exposing it to a network or deploying it publicly, implement:
+
+* Authentication and authorization
+* Per-user workspace isolation
+* Strict request and argument validation
+* Rate limiting and resource quotas
+* Approval gates for sensitive actions
+* Audit logging
+* Strong execution isolation
+* Secure secret management
+* HTTPS and appropriate network restrictions
+
+Do not run the assistant against sensitive repositories or valuable data without reviewing the safeguards and testing the tool implementations.
+
+---
+
+## Testing
+
+The documented smoke-test workflow covers the core tool operations:
 
 ```text
 write_file
-     ↓
+    ↓
 list_directory
-     ↓
+    ↓
 read_file
-     ↓
+    ↓
 search_code
-     ↓
+    ↓
 add_todo
-     ↓
+    ↓
 list_todos
-     ↓
+    ↓
 get_system_info
-     ↓
+    ↓
 git_status
 ```
 
-Negative security tests include:
+### Negative Security Tests
 
-### Path traversal attempt
+**Path traversal**
+
+Input:
 
 ```text
 ../../
 ```
 
-Expected behavior:
+Expected behavior: reject attempts to access paths outside the permitted workspace.
 
-```text
-Rejected
-```
+**Non-allowlisted command**
 
-### Non-whitelisted shell command
+Input:
 
 ```bash
 rm -rf /
 ```
 
-Expected behavior:
+Expected behavior: reject the command because it is not included in the configured allowlist.
 
-```text
-Rejected
-```
+The tool layer has been described as smoke-tested with these workflows. These checks should not be interpreted as proof of comprehensive security or complete test coverage.
 
----
-
-# Why MCP?
-
-Without MCP, AI integrations often require custom tool interfaces for every application.
-
-The **Model Context Protocol** provides a standardized way for AI clients to discover and call external tools.
-
-Instead of:
-
-```text
-AI Client
-   ↓
-Custom Integration
-   ↓
-Developer Tool
-```
-
-MCP enables:
-
-```text
-AI Client
-   ↓
-MCP
-   ↓
-Developer Tool
-```
-
-This makes the same tool server reusable across multiple MCP-compatible AI applications.
+For stronger verification, add automated tests for symbolic links, malformed arguments, shell metacharacters, command timeouts, permission errors, and unexpected tool outputs.
 
 ---
 
-# Why Share the Tool Layer?
+## Current Limitations
 
-A major architectural decision in this project is keeping tool logic in one place.
+The current design prioritizes local development and experimentation.
 
-```text
-backend/tools/
-```
-
-Both systems consume it:
-
-```text
-Gemini Web Application ─┐
-                        ├── backend/tools/
-MCP Server ─────────────┘
-```
-
-Without this approach, the project could end up with separate tool implementations for Gemini and MCP that gradually behave differently.
-
-The shared-tool design reduces that risk.
-
----
-
-# Example Workflow
-
-A user asks:
-
-```text
-Find every TODO in the workspace and create a task for each important one.
-```
-
-The system may execute:
-
-```text
-Gemini
-  │
-  ├── search_code("TODO")
-  │
-  ├── analyze results
-  │
-  ├── add_todo(...)
-  │
-  ├── add_todo(...)
-  │
-  └── return summary
-```
-
-Another example:
-
-```text
-Create a Node.js API, check the files, and show me the Git changes.
-```
-
-Possible workflow:
-
-```text
-write_file
-     ↓
-write_file
-     ↓
-run_shell_command
-     ↓
-git_diff
-     ↓
-Gemini Summary
-```
-
-This demonstrates how multiple developer tools can be combined into one autonomous workflow.
-
----
-
-# Current Limitations
-
-This project is intentionally designed as a personal/local developer assistant.
-
-Current limitations include:
-
-* No user authentication
-* No multi-user workspace isolation
-* No remote execution architecture
-* Limited shell command whitelist
-* No production secret-management service
-* No container-level execution isolation
-* No long-term conversation database
+* No built-in user authentication
 * No role-based permissions
+* No multi-user workspace isolation
+* No container-level execution sandbox
+* Limited command allowlist
+* No production secret-management service
+* No persistent conversation database
 * No production observability pipeline
+* No dedicated remote execution architecture
 
-These would be important additions before deploying the system as a public service.
-
----
-
-# Future Improvements
-
-Potential extensions include:
-
-* Docker-based execution sandboxes
-* JWT or OAuth authentication
-* Multiple isolated workspaces
-* PostgreSQL conversation history
-* Streaming Gemini responses
-* WebSocket-based tool execution updates
-* Tool approval before sensitive operations
-* File upload support
-* Code editor integration
-* Terminal interface
-* GitHub API integration
-* Automated testing tools
-* Code review agents
-* MCP resource support
-* MCP prompt templates
-* Tool execution audit logs
-* Usage analytics and observability
-* Multi-model support
+These limitations should be addressed before treating the project as a public or multi-user service.
 
 ---
 
-# Use Cases
+## Roadmap
+
+Potential improvements for future versions include:
+
+* [ ] Docker-based execution sandboxing
+* [ ] Human approval for sensitive tool calls
+* [ ] Authentication and authorization
+* [ ] Isolated workspaces for multiple projects
+* [ ] Persistent conversation history with PostgreSQL
+* [ ] Streaming Gemini responses
+* [ ] Real-time execution updates using WebSockets
+* [ ] Integrated code editor
+* [ ] GitHub API integration
+* [ ] Automated test execution and reporting
+* [ ] AI-powered code review
+* [ ] MCP resources and prompt templates
+* [ ] Tool execution audit logs
+* [ ] Usage analytics and observability
+* [ ] Support for multiple AI providers
+
+---
+
+## Use Cases
 
 This project can serve as a foundation for:
 
-* AI coding assistants
-* MCP experimentation
+* AI-powered coding assistants
 * Developer automation agents
-* AI-powered IDE tools
-* Repository analysis assistants
+* MCP server experimentation
+* Repository analysis tools
 * Local coding copilots
-* DevOps assistants
-* Autonomous development agents
-* AI tool-calling demonstrations
+* Git-aware development workflows
+* AI-assisted debugging
+* DevOps automation prototypes
+* Multi-step agentic workflows
+* Function-calling and tool-use demonstrations
 
 ---
 
-# Development Philosophy
+## Engineering Principles
 
-The project follows four main principles:
+**Shared implementation**
 
-**One tool implementation**
+Both the web application and MCP server reuse the same tool layer.
 
-MCP and Gemini use the same developer tools.
+**Visible execution**
 
-**Visible actions**
+Tool calls and their results can be inspected through the frontend.
 
-Tool calls are displayed in the UI instead of being hidden.
+**Restricted operations**
 
-**Restricted execution**
+Filesystem and shell operations use configured restrictions rather than intentionally granting unrestricted access.
 
-The AI operates inside a limited workspace with controlled command execution.
+**Protocol-based integration**
 
-**Protocol-first architecture**
+MCP allows the developer tools to be reused across compatible AI clients.
 
-MCP support keeps the tools reusable outside the custom web interface.
+**Modular architecture**
+
+The frontend, backend, AI integration, and developer tools are separated into distinct components.
 
 ---
 
-# Contributing
+## Contributing
 
-Contributions are welcome.
+Contributions, bug reports, and feature suggestions are welcome.
 
-A typical workflow:
+1. Fork the repository.
+2. Create a feature branch.
 
 ```bash
 git checkout -b feature/my-feature
 ```
 
-Make your changes.
-
-Then:
+3. Implement and test your changes.
+4. Commit your changes.
 
 ```bash
 git add .
 git commit -m "Add new feature"
+```
+
+5. Push the branch.
+
+```bash
 git push origin feature/my-feature
 ```
 
-Open a pull request describing the change.
+6. Open a pull request describing the changes and relevant tests.
+
+For security-sensitive changes, include tests demonstrating that restricted operations remain restricted.
 
 ---
 
-# Disclaimer
+## License
 
-This project allows AI models to interact with files, shell commands, and Git repositories.
-
-Although safeguards are implemented, AI-generated actions should still be reviewed when working with important projects or data.
-
-Use the project primarily in controlled development environments.
+Choose and add a license before distributing the project. Until a license is specified in the repository, reuse and redistribution permissions should not be assumed.
 
 ---
 
-# License
+## Author
 
-karthik
+**Karthik**
+
+AI Engineering | Python | Machine Learning | Generative AI | Developer Automation
+
+GitHub: [Karthik236990](https://github.com/Karthik236990)
+
+LinkedIn: [Karthik Pedamalla](https://linkedin.com/in/karthik-pedamalla-a46688301)
+
+---
+
+<p align="center">
+  <strong>Building practical AI systems that move beyond conversation and interact with real developer workflows.</strong>
+</p>
